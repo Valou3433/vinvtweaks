@@ -9,6 +9,7 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.container.ClickType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ToolItem;
+import net.minecraft.nbt.ListNBT;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -40,7 +41,9 @@ public class VInvTweaks
     // Directly reference a log4j logger.
     private static final Logger LOGGER = LogManager.getLogger();
 
-    public static final boolean DEBUG = true;
+    public static final boolean DEBUG = false;
+    public static final int PLAYER_INVENTORY_SIZE = 36;
+    public static final int SHULKER_INVENTORY_SIZE = 27;
     public static KeyBinding keySortBinding;
 
     public VInvTweaks()
@@ -84,11 +87,13 @@ public class VInvTweaks
         final String name;
         int position;
         final boolean isEmpty;
-        public Slot(String namel, int positionl, boolean isEmpty)
+        final ItemStack itemStack;
+        public Slot(String namel, int positionl, boolean isEmpty, ItemStack itemStack)
         {
             this.name = namel;
             this.position = positionl;
             this.isEmpty = isEmpty;
+            this.itemStack = itemStack;
         }
     }
 
@@ -96,7 +101,7 @@ public class VInvTweaks
     {
         //group items of same type
         int size = inventory.getSizeInventory();
-        if(inventory instanceof PlayerInventory) size = 35; //should fix player inventory bug sorting hotbar
+        if(inventory instanceof PlayerInventory) size = PLAYER_INVENTORY_SIZE; //should fix player inventory bug sorting hotbar
         if(DEBUG) System.out.println("Inventory size = " + size + "  (" + inventory.toString() + ")");
         for(int i = slotStart; i < size; i++)
         {
@@ -120,15 +125,12 @@ public class VInvTweaks
         for(int i = slotStart; i < size; i++)
         {
             ItemStack stacki = inventory.getStackInSlot(i);
-            slotList.add(new Slot(stacki.getDisplayName().getString(), i, stacki.isEmpty()));
+            slotList.add(new Slot(stacki.getDisplayName().getString(), i, stacki.isEmpty(), stacki));
         }
         slotList.sort(new Comparator<Slot>() {
             @Override
             public int compare(Slot slot, Slot t1) {
-                if(slot.isEmpty && t1.isEmpty) return 0;
-                else if(slot.isEmpty) return 10000;
-                else if(t1.isEmpty) return -10000;
-                return slot.name.compareTo(t1.name);
+                return compareSlots(slot, t1);
             }
         });
 
@@ -150,6 +152,33 @@ public class VInvTweaks
             }
             current.position = i;
         }
+    }
+
+    public static int compareSlots(Slot slot, Slot t1)
+    {
+        if(slot.isEmpty && t1.isEmpty) return 0;
+        else if(slot.isEmpty) return 10000000;
+        else if(t1.isEmpty) return -10000000;
+
+        int alphaCompare = slot.name.compareTo(t1.name)*10000;
+
+        if(alphaCompare != 0) return alphaCompare;
+
+        //compare metadatas : new tools should go before old, enchants should be matched (for books)
+        int damageCompare = (slot.itemStack.getDamage() - t1.itemStack.getDamage());
+        if(damageCompare != 0) return damageCompare;
+
+        ListNBT slotEnchants = slot.itemStack.getEnchantmentTagList();
+        ListNBT tEnchants = slot.itemStack.getEnchantmentTagList();
+        if(slotEnchants.size() > tEnchants.size()) return 1;
+        else if(tEnchants.size() > slotEnchants.size()) return -1;
+        for(int i = 0; i < slotEnchants.size(); i++)
+        {
+            int enchantCompare = tEnchants.get(i).getId() - slotEnchants.get(i).getId();
+            if(enchantCompare != 0) return enchantCompare;
+        }
+
+        return 0;
     }
 
     static class VKeyEventListener
@@ -190,16 +219,13 @@ public class VInvTweaks
         {
             if(event == null) return;
             ItemStack destroyed = event.getOriginal();
-            if(destroyed.getItem() instanceof ToolItem)
+            for(int i = 9; i < PLAYER_INVENTORY_SIZE; i++)
             {
-                for(int i = 9; i < 35; i++)
+                if(Minecraft.getInstance().player.inventory.mainInventory.get(i).getItem().equals(destroyed.getItem()))
                 {
-                    if(Minecraft.getInstance().player.inventory.mainInventory.get(i).getItem().equals(destroyed.getItem()))
-                    {
-                        Minecraft.getInstance().playerController.windowClick(Minecraft.getInstance().player.container.windowId, i, GLFW_MOUSE_BUTTON_1, ClickType.PICKUP, Minecraft.getInstance().player);
-                        Minecraft.getInstance().playerController.windowClick(Minecraft.getInstance().player.container.windowId, 36 + Minecraft.getInstance().player.inventory.currentItem, GLFW_MOUSE_BUTTON_1, ClickType.PICKUP, Minecraft.getInstance().player);
-                        break;
-                    }
+                    Minecraft.getInstance().playerController.windowClick(Minecraft.getInstance().player.container.windowId, i, GLFW_MOUSE_BUTTON_1, ClickType.PICKUP, Minecraft.getInstance().player);
+                    Minecraft.getInstance().playerController.windowClick(Minecraft.getInstance().player.container.windowId, 36 + Minecraft.getInstance().player.inventory.currentItem, GLFW_MOUSE_BUTTON_1, ClickType.PICKUP, Minecraft.getInstance().player);
+                    break;
                 }
             }
         }

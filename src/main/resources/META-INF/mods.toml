@@ -18,7 +18,7 @@ version="1.0" #mandatory
  # A display name for the mod
 displayName="VInvTweaks" #mandatory
 # A URL to query for updates for this mod. See the JSON update specification <here>
-updateJSONURL="https://valou3433.fr/" #optional
+updateJSONURL="https://github.com/Valou3433/vinvtweaks" #optional
 # A URL for the "homepage" for this mod, displayed in the mod UI
 displayURL="https://valou3433.fr/" #optional
 # A file name (in the root of the mod JAR) containing a logo for display

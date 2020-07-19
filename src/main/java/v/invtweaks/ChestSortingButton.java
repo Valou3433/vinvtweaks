@@ -46,7 +46,7 @@ public class ChestSortingButton extends Button
                     @Override
                     public int getSizeInventory()
                     {
-                        return 27;
+                        return VInvTweaks.SHULKER_INVENTORY_SIZE;
                     }
 
                     @Override
